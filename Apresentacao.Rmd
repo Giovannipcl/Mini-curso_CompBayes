@@ -1,0 +1,692 @@
+---
+title: "Introdução à Computação Bayesiana"
+author: 
+  - Giovanni Pastori Piccirilli
+date: "22 October 2025"
+output:
+  xaringan::moon_reader:
+    css: ["default", "assets/sydney-fonts.css", "assets/sydney2.css"]
+    self_contained: false # if true, fonts will be stored locally
+    seal: true # show a title slide with YAML information
+    includes:
+      in_header: "assets/mathjax-equation-numbers.html"
+    nature:
+      beforeInit: ["assets/remark-zoom.js", "https://platform.twitter.com/widgets.js"]
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+      ratio: '16:9' # alternatives '16:9' or '4:3' or others e.g. 13:9
+      navigation:
+        scroll: false # disable slide transitions by scrolling
+---
+
+```{r, load_refs, echo=FALSE, cache=FALSE, message=FALSE}
+library(RefManageR)
+BibOptions(check.entries = FALSE, 
+           bib.style = "authoryear", 
+           cite.style = 'authoryear', 
+           style = "markdown",
+           hyperlink = FALSE, 
+           dashed = FALSE)
+myBib <- ReadBib("assets/bibliografia.bib", check = FALSE)
+top_icon = function(x) {
+  icons::icon_style(
+    icons::fontawesome(x),
+    position = "fixed", top = 10, right = 10
+  )
+}
+
+
+```
+
+<style>
+p.caption {
+  font-size: 0.6em;
+}
+</style>
+
+
+### Conteúdo
+
+- Introdução
+
+- MCMC (Stan)
+
+- INLA
+
+- Variational Bayes
+
+---
+
+### Introdução
+___
+
+
+- Na maioria das vezes, queremos interpretar dados $\boldsymbol{D}$ com base em um modelo $M$. Esse modelo permite fazer previsões e interpretações sobre os dados em função de certos parâmetros $\boldsymbol{\theta}_M$.  
+
+- Os parâmetros descrevem  e caracterizam o modelo assumido $M$, sendo assim são essenciais para fazer inferência sobre os dados, e generalizar essa inferência a um novo conjunto. 
+
+- Na inferência Bayesiana estamos interessados na quantidade $p(\boldsymbol{\theta}_M | \boldsymbol{D}, M)$. Conhecida como probabilidade a posteriori, ela representa a probabilidade de que os parâmetros sejam $\boldsymbol{\theta}_M$ (valores), condicional aos dados D e o modelo M.
+
+\begin{equation}\label{bayes_theorem}
+    p(\boldsymbol{\theta}_M|\boldsymbol{D}, M) = \frac{p(\boldsymbol{D}|\boldsymbol{\theta}_M,M) p (\boldsymbol{\theta}_M|M)}{p(\boldsymbol{D}|M)}
+\end{equation}
+
+
+- Assume-se que os termos no numerador de (\ref{bayes_theorem}) são conhecidos.
+
+---
+
+- O denominador
+
+\begin{equation}\label{evidencia}
+P(\boldsymbol{D}|M) = \int P(\boldsymbol{D}|\boldsymbol{\theta}_M,M) P(\boldsymbol{\theta}_M | M) d\boldsymbol{\theta}_M 
+\end{equation}
+é conhecido como priori preditiva, evidência, ou verossimilhança marginal (veja que é a integral da verossimilhança do modelo $M$ sobre todos valores dos parâmetros.) 
+
+- De modo geral, isso tenta quantificar o quanto o nosso modelo M explica bem os dados D, após fazer uma média sobre todos os possíveis valores dos parâmetros. 
+
+- Como, na maioria dos casos, tomamos D como **dado**, esse termo geralmente acaba sendo uma constante e então: 
+
+\begin{equation}\label{bayes_theom}
+    p^*(\boldsymbol{\theta}_M|\boldsymbol{D}, M) \propto p(\boldsymbol{D}|\boldsymbol{\theta}_M,M) p(\boldsymbol{\theta}_M|M)
+\end{equation}
+
+- A expressão em (\ref{bayes_theom}) não é mais uma distribuição de probabilidade, mas sim apenas uma função dos parâmtros.
+
+
+
+---
+
+- A priori preditiva é essencial para normalizar a posteriori e obter probabilidades e quantidades de interesse, por exemplo
+
+$$
+\mathbb{E(\boldsymbol{\theta})} = \int \boldsymbol{\theta}p(\boldsymbol{\theta}|\boldsymbol{D},M)d\boldsymbol{\theta} =    \frac{\int \boldsymbol{\theta} p(\boldsymbol{D}|\boldsymbol{\theta},M) p (\boldsymbol{\theta}|M) d\boldsymbol{\theta}}{p(\boldsymbol{D}|M)}
+$$
+
+- Em alguns modelos $p(\boldsymbol{D}|M)$ pode ser encontrada identificando o núcleo da distribuição a posteriori $p^*(\boldsymbol{\theta}_M|\boldsymbol{D}, M)$, ou resolvendo a integral em (\ref{evidencia}).
+
+- Contudo, quando a integral pode não ter solução analítica — o que é comum em modelos multiparamétricos — métodos numéricos ou aproximados precisam ser empregados.
+
+- **Métodos de aproximação numérica de integrais** funcionam bem em **baixas dimensões**.
+
+- No entanto, **o custo computacional cresce rapidamente** com o número de parâmetros, tornando-os lentos ou inviáveis em altas dimensões. 
+
+- Além disso, como não sabemos previamente a forma da distribuição.
+
+
+
+---
+
+- Diante dessas limitações, surgiu a necessidade de novas estratégias para aproximar as distribuições a posterioris de forma eficiente.
+
+- Com a apresentação e popularização dos algoritmos baseados em simulação, especialmente os Métodos de Monte Carlo via Cadeias de Markov (MCMC), a computação Bayesiana passou por um avanço notável.
+
+- Dois avanços notórios são: Metropolis-Hastings e Gibbs Sampling.
+
+- Vamos falar de 3 métodos:
+
+  - **Hamiltonian Monte Carlo**: empregado no Stan, é um metódo de Markov Chain Monte Carlo baseado na dinâmica Hamiltoniana.
+
+  - **Integrated Nested Laplace Approximation**: Usa aproximações de Laplace aninhadas em modelos Gausianos latentes.
+
+  - **Variational Bayes**: procura em uma família de distribuições a mais próxima da posteriori verdadeira.
+
+---
+
+### Markov Chain Monte Carlo (MCMC)
+___
+
+- Em resumo, os métodos de MCMC simulam amostras proporcionais à distribuição a posteriori, a fim de obter estimativas de quantidades de interesse, como média, variância, mediana e assimetria.
+
+- O MCMC realiza isso construindo uma **cadeia de Markov** de valores de parâmetros correlacionados  
+$\theta_1 \rightarrow \cdots \rightarrow \theta_n$ ao longo de $n$ iterações, de modo que o número de iterações $m(\theta_i)$ passadas em uma região específica $\delta_{\theta_i}$, centrada em $\theta_i$, seja proporcional à **densidade a posteriori** $p(\theta_i \mid \mathbf{D})$ contida nessa região.  
+
+- Em outras palavras, **a densidade das amostras geradas pelo MCMC reflete a distribuição a posteriori**:
+
+$$
+\rho(\theta) \equiv \frac{m(\theta)}{n}.
+$$
+
+e então,
+
+$$\int_{\theta \in \delta_{\theta}} p(\theta|\boldsymbol{D}) d\theta \approx \int_{\theta \in \delta_{\theta}} \rho(\theta|\boldsymbol{D}) d\theta \approx n^{-1} \sum_{j=1}^n \mathbb{1}[\theta_j \in \delta_{\theta}].$$
+
+
+---
+
+- Embora isso seja apenas aproximadamente verdadeiro para qualquer $n$ finito, 
+à medida que o número de amostras $n \to \infty$, este procedimento geralmente 
+garante que 
+$$
+\rho(\theta) \to P(\theta) \quad \text{em todos os pontos}.
+$$
+
+- Alguns pontos a destacar:
+  - Esses algoritmos constroem uma cadeia de Markov cujo a distribuição de equilíbrio (estacionária) é a distribuição a posteriori.
+  - Os estados da cadeia representam uma amostra da nossa distribuição.
+  - Monte Carlo:
+
+$$
+\mathbb{E}[g(\theta)] = \int g(\theta) p(\theta) d\theta \approx \frac{1}{n} \sum_{i = 1}^n g(\theta_i)
+$$
+  - O MCMC não é um metodo Bayesiano.
+  - O objetivo principal do MCMC não é aproximar 
+ou explorar a posteriori, ou seja, estimar $\rho(\Theta)$, mas sim estimar valores esperados 
+(ou seja, integrais sobre a posteriori). 
+
+---
+
+**Metropolis-Hastings**: 
+
+- Dado um valor atual $\theta$, nos simulamos um novo valor $\theta'$ de uma distribuição $q(\cdot|\theta)$, é muito comum utilizar uma normal centrada em $\theta$ com variância 1.
+-Calculamos a probabilidade de aceitação 
+
+$$
+\alpha(\theta,\theta') = \text{min}\left(1, \frac{p(\theta')}{p(\theta)}\frac{q(\theta|\theta')}{q(\theta'|\theta)}\right)
+$$
+
+$p(\theta)$ é a distribuição de interesse (proporcinal).
+
+Simulamos um valor $u \sim U(0,1)$, se $\alpha > u$ aceitamos o valor e $\theta^{t+1} = \theta'$, caso contrário, $\theta^{t+1} = \theta$
+
+---
+
+**Gibbs Sampling**: 
+
+- Considere uma distribuição posteriori multivariada $p(\theta)$. O algoritmo GS simula valores das distribuições condicionais para obter uma amostra da distribuição conjunta.
+ 
+Considere um vetor inicial $\theta^0 = (\theta_1^0, \dots, \theta_d^0)$ de valores.
+
+Obtenha um novo valor $\theta^{t}$ de $\theta^{t-1}$ gerando os valores sequencialmente de 
+
+$$\theta_1^t \sim p(\theta_1|\theta_2^{t-1}, \dots, \theta_d^{t-1})$$
+$$\theta_2^t \sim p(\theta_2|\theta_1^{t}, \theta_3^{t-1} \cdots, \theta_d^{t-1})$$
+
+$$\vdots$$
+$$\theta_d^t \sim p(\theta_d|\theta_1^{t}, \theta_2^{t} \cdots, \theta_{d-1}^{t})$$
+---
+
+- O algoritmo de GS para ser eficiente é necessário que as condicionais completas sejam conhecidas.
+- O algoritmo MH demora muito a convergir para modelos complexos.
+- O algoritmo implementado no Stan é baseado no algoritmo conhecido como Hamiltonian Monte Carlo (HMC).
+- O algoritmo HMC apresenta convergência mais rápida.
+  - O HMC é um algoritmo MCMC baseado na ideia da dinâmica Hamiltoniana.
+  - O algoritmo propõe melhores valores comparados ao MH, consequentemente produz maiores valores de probabilidade de aceitação.
+  - No MH nos simulamos de uma densidade $q(\cdot|x)$ de forma aleatória.
+  - O HMC modifica isso usando conceitos da dinâmica Hamiltoniana.
+
+---
+
+- A dinâmica Hamiltoniana é definida em termos da posição $x$ e impulso $\omega$ de uma partícula em função do tempo T. Sua equações descrevem a evolução temporal do sistema em termos do Hamiltoniano (H), que corresponde à energia total do sistema.
+
+$$H(x,\omega) = U(x) + K(\omega)$$
+
+- Essa particula tem energia potencial $U(x)$ e cinética $K(\omega)$ e a energia total $H(x,\omega) = U(x) + K(\omega)$ é chamada de hamiltoniano.
+
+
+- Nossa distribuição a posteriori de interesse é incorporada no hamiltoniano, chamamos a posição da particula agora de $\theta$ (nosso parâmetro), e a energia cinêtica como a posteriori de interesse
+
+$$\begin{align}
+H(\theta, \omega) & = -\log p(\omega, \theta) \nonumber \\
+                  & =-\log p(\omega| \theta)  - \log p(\theta)
+\end{align}$$
+
+em que, $p(\omega| \theta) = p(\omega)$ e 
+
+$$
+\omega \sim \text{MultiNormal}(0, \Sigma).
+$$
+
+
+
+---
+
+
+- A trajetória $(\omega, \theta)$ no "tempo" é definida pelo sistema de equações diferenciais (Hamilton's equations)
+
+$$\frac{d\theta}{dt} = \frac{\partial H}{\partial \omega}$$ $$\frac{d \omega}{dt} = \frac{-\partial H}{\partial \theta} $$
+
+- As equações são resolvidas numericamente utilizando um algoritmo chamado de "Leapfrog Integrator".
+
+- O algoritmo demanda dois parâmetros. O tamanho do passo, $\epsilon$, e o número de atualizações da dinâmica $L$.
+
+- Dado um estado inicial $(\theta^0, \omega^0)$ depois de resolver a equação para um dado $T$ a dinâmica nos retorna $(\theta^T , \omega^T)$. Esse valor passa por um critério de aceitação assim como o MH.
+
+
+---
+
+- Escolher L é particularmente problemático; é difícil encontrar uma métrica simples para determinar quando uma trajetória é muito curta, muito longa ou “na medida certa.”
+
+- O algoritmo implementado no Stan concebe um amostrador MCMC que preserve a capacidade do HMC de suprimir o comportamento de passeio aleatório sem a necessidade de definir o número (L) de passos e tamanho dos passos $\epsilon$.
+
+- Esse algoritmo é conhecido como No-U-Turn-Sampler (NUTS).
+
+- No Stan nos definimos um modelo probabilístico usando a linguagem Stan, e não precisamos lidar com detalhes do algoritmo (nem sempre).
+
+- Em casos de falta de convergência do algoritmo o programa responde com instruções didáticas.
+
+- Um programa em Stan é definido em blocos, são eles:
+        - Data.
+        - Parameters.
+        - Transformed parameters (opcional).
+        - Model.
+---
+
+```stan
+data {                      
+  int<lower=1> N;           // Tamanho amostral
+  int<lower=1> K;           // Dimensão da matriz de planejamento
+  matrix[N, K] X;           // Matriz de planejamento
+  vector[N] y;              // Respostas
+}
+parameters {                
+  vector[K] beta;           
+  real<lower=0> sigma;      
+}
+model {                     
+  vector[N] mu;
+  mu = X * beta;            
+  
+  // priors
+  beta ~ normal(0, 10);
+  sigma ~ cauchy(0, 5);     
+  
+  // likelihood
+  y ~ normal(mu, sigma);
+}
+```
+
+---
+### Dados do tipo escalar
+
+- **Inteiros e reais sem restrições:**
+```stan
+int N;
+real theta;
+```
+
+- **Inteiros e reais com restrições:**
+```stan
+int<lower = 1> N;
+real<lower = 0> sigma;
+real<lower = -1, upper = 1> rho;
+```
+
+---
+
+### Vetores e Matrizes em Stan
+
+- **Vetores em Stan** são do tipo coluna e são declarados junto com a dimensão:
+```stan
+vector[3] u;
+```
+
+- **Eles também podem conter restrições:**
+```stan
+vector<lower = 0>[3] u;
+```
+
+- **Matrizes** são declaradas com o número de linhas e colunas:
+```stan
+matrix[3, 3] A;
+matrix<upper=0>[3, 4] B;
+```
+
+---
+
+### Tipos especiais de matrizes e vetores
+
+- **Vetor unit simplex** (soma dos elementos é igual a 1):
+```stan
+simplex[5] theta;
+```
+
+- **Vetor ordenado ou positivo ordenado:**
+```stan
+ordered[5] c;
+positive_ordered[5] d;
+```
+
+- **Vetor linha:**
+```stan
+row_vector[3] u;
+```
+
+- **Matriz de covariância e correlação :**
+```stan
+cov_matrix[K] Omega;
+corr_matrix[3] Sigma;
+```
+
+
+---
+### Integrated Nested Laplace Approximation (INLA)
+___
+
+-  Os métodos MCMC são muito gerais e podem ser efetivamente aplicados a diferente modelos.
+
+- Teoricamente, MCMC pode fornecer inferências (quase) exatas, dada uma convergência perfeita.
+
+- **Tempo de Convergência e Eficiência**: O MCMC pode ser muito lento para convergir, especialmente em modelos complexos com muitas dimensões.
+
+- **Escalabilidade**: O MCMC não escala bem para grandes conjuntos de dados.
+
+- O algoritmo INLA apresenta aproximações númericas da distribuição a posteriori ao invés de amostragem.
+
+- O algoritmo INLA é projetado para a classe de Modelos Gaussianos Latentes (MGL) e comparado ao MCMC, ele fornece resultados igualmente precisos em menos tempo.
+
+- Mais de 250 estudos sobre COVID-19 usaram o INLA para realizar inferência em modelos bayesianos (2022).
+
+---
+
+- Essa grande popularidade é impactada principalmente pelo pacote `INLA` disponível em R.
+
+- Além se uma interface amigável o pacote oferece:
+  - baixo custo computacional;
+  - alta acurácia;
+  - modelos complexos podem ser ajustados com pacote, especialmente modelos espaciais;
+  - modelos relevantes da estatística são MGLs.
+
+---
+#### Modelos Gaussianos Latentes (MGL)
+
+- Assumindo um modelo de probabilidade para os dados observados $\boldsymbol{y} = (y_1, \dots, y_n)$, em função de alguns parâmetros:
+
+\begin{equation}
+\boldsymbol{y}|\boldsymbol{\beta}, \boldsymbol{\tau}_1 \sim p( \boldsymbol{y}|\boldsymbol{\beta}, \boldsymbol{\tau}_1) 
+\end{equation}
+
+- Precisamos assumir que a priori de $\boldsymbol{\beta}$ é Gaussiana (isso não é problema) tal que
+
+$$\begin{align}
+    \boldsymbol{\beta}|\boldsymbol{\tau_2} \sim N(\mu, \boldsymbol{Q}^{-1}(\boldsymbol{\tau_2})) \\
+    \beta_i \perp\!\!\!\perp \beta_j |\boldsymbol{\beta}_{-(i,j)} \Leftrightarrow Q_{i,j}(\boldsymbol{\tau_2}) = 0
+\end{align}$$
+
+
+- A matrix de precisão depende do vetor $\boldsymbol{\tau_2}$.
+- Os componentes de $\boldsymbol{\beta}$ são denominados condicionalemnte independentes $\Rightarrow \boldsymbol{Q}$ é uma matriz esparsa! 
+
+
+- Por fim a Hyperpriori
+
+$$
+\boldsymbol{\tau}=  \boldsymbol{\tau_1}, \boldsymbol{\tau_2} \sim p(\boldsymbol{\tau})
+$$
+
+---
+#### Modelo Linear Generalizado Gaussiano
+
+- Preditor linear
+
+    $$
+    \boldsymbol{\eta} = \beta_0 + \beta_1 x_1 + \dots \beta_p x_p = \boldsymbol{X}^{\top}\boldsymbol{\beta}
+    $$
+
+- Família exponencial
+
+$$
+y_i| \eta_i, \tau \sim FE(g^{-1}(\eta_i), \tau)
+$$
+
+- Distribuição a priori 
+$$\boldsymbol{\beta} \sim \mathcal{N}(\boldsymbol{0}, \Sigma)$$
+
+- Apenas um hiperparâmetro, $\tau$, e matrix de precisão $\Sigma$. 
+
+
+$$p(\boldsymbol{\beta}, \tau|\boldsymbol{y}) \propto p(\tau) \times p(\boldsymbol{\beta}|,  \boldsymbol{0}, \Sigma) \times \prod_i p_{fe}(y_i|\boldsymbol{\beta}, \tau)$$
+
+sendo $p_{fe}$ a densidade de uma distribuição da família exponencial
+
+---
+#### Aproximação de Laplace
+
+
+
+- Seja $\pi(\boldsymbol{\theta} \mid \boldsymbol{y})$ uma densidade a posteriori contínua e diferenciável em $\Theta \subseteq \mathbb{R}^p$.
+
+- A aproximação de Laplace é um dos primeiros métodos de aproximação propostos — conhecida mesmo antes do surgimento dos métodos MCMC.  
+
+- A ideia central é aproximar a log-densidade a posteriori $\log \pi(\boldsymbol{\theta} \mid \boldsymbol{X})$ por meio de uma expansão de Taylor em torno do modo $\hat{\boldsymbol{\theta}}_{\text{MAP}}$, resultando em
+
+$$\log \pi(\boldsymbol{\theta} \mid \boldsymbol{y}) \approx \log \pi(\hat{\boldsymbol{\theta}}_{\text{MAP}} \mid \boldsymbol{y}) - \frac{1}{2} (\boldsymbol{\theta} - \hat{\boldsymbol{\theta}}_{\text{MAP}})^\top \hat{\boldsymbol{H}} (\boldsymbol{\theta} - \hat{\boldsymbol{\theta}}_{\text{MAP}}),$$
+
+em $\hat{\boldsymbol{H}}$ é a Hessiana negativa de $\log \pi(\boldsymbol{\theta} \mid \boldsymbol{y})$ avaliada em $\hat{\boldsymbol{\theta}}_{\text{MAP}}$:
+
+$$\hat{\boldsymbol{M}} =  - \frac{\partial^2 \log \pi(\boldsymbol{\theta} \mid \boldsymbol{y})} {\partial \boldsymbol{\theta} \, \partial \boldsymbol{\theta}^\top} \Bigg|_{\boldsymbol{\theta} = \hat{\boldsymbol{\theta}}_{\text{MAP}}}.$$
+Essa expansão quadrática leva à seguinte aproximação Gaussiana multivariada da posteriori:
+
+$$\pi(\boldsymbol{\theta} \mid \boldsymbol{y})
+\approx
+\mathcal{N}_p
+\big(
+\boldsymbol{\theta}
+\mid
+\hat{\boldsymbol{\theta}}_{\text{MAP}},
+\hat{\boldsymbol{M}}^{-1}
+\big).$$
+
+
+---
+
+Voltando ao MLG
+
+$$p(\boldsymbol{\beta}, \tau|\boldsymbol{y}) \propto p(\tau) \times p(\boldsymbol{\beta}|,  \boldsymbol{0}, \Sigma) \times \prod_i p_{fe}(y_i|\boldsymbol{\beta}, \tau)$$
+
+
+
+- Nossas marginais de interesse podem ser escritas como 
+
+$$
+\pi(\beta_i|\boldsymbol{y}) = \int \pi(\beta_i|\boldsymbol{\tau},\boldsymbol{y}) \pi(\boldsymbol{\tau}|\boldsymbol{y})d\boldsymbol{\tau},
+$$
+
+
+$$p(\tau_k|\boldsymbol{y}) = \int p(\boldsymbol{\tau}|\boldsymbol{y})d\boldsymbol{\tau}_{-k}$$
+
+- Precisamos aproximar: 
+  - $p(\boldsymbol{\tau}|\boldsymbol{y})$;
+  - $\pi(\beta_i|\boldsymbol{\tau},\boldsymbol{y})$
+
+---
+- A primeira posteriori é dada por
+
+$$\tilde{\pi}(\boldsymbol{\tau}|\boldsymbol{y}) \propto  \frac{\pi(\boldsymbol{y}|\boldsymbol{\tau}, \boldsymbol{\beta}) \pi(\boldsymbol{\beta}|\boldsymbol{\tau})\pi(\boldsymbol{\tau})}{\tilde{\pi}(\boldsymbol{\beta}| \boldsymbol{\tau}, \boldsymbol{y})}\bigg|_{\boldsymbol{\beta} = \boldsymbol{\beta}^{*}(\boldsymbol{\tau})}$$
+ em que o denominador é aproximada por Laplace. 
+ 
+ - As marginais são,
+
+$$\tilde{\pi}(\beta_i| \boldsymbol{\tau}, \boldsymbol{y}) \propto \frac{\pi(\boldsymbol{\beta}, \boldsymbol{\tau}, \boldsymbol{y})}{\tilde{\pi}(\beta_{-i} |\beta_i, \boldsymbol{\tau}, \boldsymbol{y})} \bigg|_{\boldsymbol{\beta}_{-i} = \boldsymbol{\beta}_{-i}^{*}(\beta_i, \boldsymbol{\tau})}$$
+
+em que o denominador também pode ser aproximado por Laplace.
+
+
+- O último passo é resolver a integral em $\boldsymbol{\tau}$
+
+$$\tilde{\pi}(\beta_i|\boldsymbol{y}) = \int \tilde{\pi}(\beta_i| \boldsymbol{\tau}, \boldsymbol{y})\tilde{\pi}(\boldsymbol{\tau}|\boldsymbol{y}) d\boldsymbol{\tau} = \sum_{j = 1}^{J} \tilde{\pi}(\beta_i| \boldsymbol{\tau}^{(j)}, \boldsymbol{y}) \tilde{\pi}(\boldsymbol{\tau}^{(j)}|\boldsymbol{y}) \Delta_j.$$
+
+---
+
+Está tudo no nome:
+
+**Integrated Nested Laplace Approximation**
+
+- A aproximação de Laplace é a base para estimar as distribuições desconhecidas;
+- As aproximações de Laplace estão aninhadas umas nas outras;
+- As marginais são obtidas por integração.
+
+
+---
+#### R-INLA
+
+https://www.r-inla.org
+
+![](figuras/site.png)
+
+
+
+---
+
+#### R-INLA
+
+- Lembre-se de que o elemento central de cada **Modelo Gaussiano Latente (LGM)** é o **preditor linear**:
+
+$$\eta_i = \beta_0 + \underbrace{\sum_{m=1}^{M} \beta_m x_{mi}}_{\text{Efeitos fixos}} + \underbrace{\sum_{l=1}^{L} f_l(z_{li})}_{\text{Efeitos aleatórios}}$$
+
+o qual está relacionado à observação por meio da **função de ligação**:
+
+$$g(\phi_i) = \eta_i$$
+
+- A **verossimilhança** e a **função de ligação** $g(\cdot)$ são especificadas por meio da função `inla(...)`.  
+
+- O **preditor linear** $\eta_i$ é especificado através de uma **interface de fórmula**, de forma semelhante às chamadas de funções como `lm()` e `glm()` no R.
+
+
+---
+#### Exemplo: Preditor Linear Simples
+
+Considere o seguinte **preditor linear**:
+
+$$\eta_i = \beta_0 + \beta_1 x_{1i} + \beta_2 x_{2i} + f(z_i)$$
+
+onde:  
+- $\beta = (\beta_0, \beta_1, \beta_2) \sim \text{Normal}(0, \text{variância alta})$ são os **efeitos fixos**  
+- $f \sim \text{Normal}\big(0, Q_f^{-1}(\tau)\big)$ é usado para incluir um **efeito aleatório** (que depende do índice $z$)
+
+Esse modelo pode ser traduzido em uma **fórmula INLA** da seguinte forma:
+
+```r
+formula = y ~ 1 + x1 + x2 + f(name = z, model = "...")
+```
+
+
+---
+
+### Variational Bayes
+___
+
+- O Variational Bayes (VB) ganhou popularidade devido ao aumento da complexidade dos modelos bayesianos, à enorme quantidade de dados analisados e à crescente necessidade de métodos computacionalmente eficientes.
+
+- O VB procura uma distribuição em um espaço de distribuições, chamado de **família variacional**, que minimiza a divergência de Kullback-Leibler em relação à distribuição a posteriori verdadeira.
+
+- Se a família selecionada incluir a distribuição a posteriori verdadeira (a do teorma de bayes), a aproximação VB pode recuperar exatamente essa distribuição.
+
+- Os métodos VB restringem a família variacional de distribuições a uma forma paramétrica, isto é, $q_{\boldsymbol{\psi}}(\boldsymbol{\theta}) \in \mathcal{Q},$
+onde $\mathcal{Q} = \lbrace q_{\boldsymbol{\psi}}(\boldsymbol{\theta}) : \boldsymbol{\psi} \in \Psi \rbrace$ é uma família de distribuições parametrizada por $\boldsymbol{\psi}$.
+
+- Assim, a busca pela melhor distribuição torna-se uma busca pelo parâmetro ótimo no espaço de parâmetros $\boldsymbol{\psi}$.
+
+
+---
+
+- O objetivo é minimizar em $\boldsymbol{\psi}$ a seguinte divergência
+
+$$\begin{align}\label{KLD}
+\text{KLD}(q_{\psi}(\boldsymbol{\theta})||p(\boldsymbol{\theta}|\boldsymbol{y})) = & \mathbb{E}_{q_{\psi}(\boldsymbol{\theta})}\left[\log \frac{q_{\psi}(\boldsymbol{\theta})}{p(\boldsymbol{\theta}|\boldsymbol{y})}\right] = \mathbb{E}_{q_{\psi}(\boldsymbol{\theta})}[\log q_{\psi}(\boldsymbol{\theta})] - \mathbb{E}_{q_{\psi}(\boldsymbol{\theta})}[\log p(\boldsymbol{\theta}|\boldsymbol{y})] \nonumber \\
+    = &\mathbb{E}_{q_{\psi}(\boldsymbol{\theta})}[\log q_{\psi}(\boldsymbol{\theta})] - \mathbb{E}_{q_{\psi}(\boldsymbol{\theta})}[\log p(\boldsymbol{\theta}|\boldsymbol{y})] \nonumber \\
+     = &\mathbb{E}_{q_{\psi}(\boldsymbol{\theta})}[\log q_{\psi}(\boldsymbol{\theta})] - \mathbb{E}_{q_{\psi}(\boldsymbol{\theta})}[\log p(\boldsymbol{\theta},\boldsymbol{y})] + \log p(\boldsymbol{y}) \nonumber \\
+     = & - \text{ELBO}(\boldsymbol{y},\boldsymbol{\psi}) + \log p(\boldsymbol{y}). 
+\end{align}$$
+
+- Na expressão o termo $\log p(\boldsymbol{y})$ é constante, a KLD é sempre maior ou igual a zero, então a distribuição a posteriori aproximada $q_{\boldsymbol{\psi}^*}(\boldsymbol{\theta})$ de $p(\boldsymbol{\theta|\boldsymbol{y}}$ minimiza $\text{KLD}(q_{\psi}(\boldsymbol{\theta}) ,||, p(\boldsymbol{\theta}|\boldsymbol{y}))$ para algum $\boldsymbol{\psi}^*$ ótimo.
+
+- Embora seja um método promissor, desenvolver um algoritmo de inferência variacional exige derivações e implementação específicas e trabalhosas para cada modelo.
+
+- Os algoritmos exigem escolhas de famílias variacionais e solução dos valores esperados.
+---
+
+- Os trabalhos recentes em VB procuram por novas famíliais variacionais:
+  - Hierarchical families
+  - Normalizing flows
+  - Mixture of distributions
+
+- Outros procuram por deixar o algoritmo o mais genérico possivel
+  - Black Box VI
+  - Automatic Diﬀerentiation Variational Inference (Stan)
+
+
+
+---
+#### Automatic Diﬀerentiation Variational Inference
+
+- Nessa apresentação o foco é o Automatic Diﬀerentiation Variational Inference (ADVI), isso porque sua implementação está disponível em R e Python com o Stan. 
+
+- Usando a programação probabilística do Stan (exemplos anteriories) podemos escolher o ADVI agora ao invés da simulação via NUTS sem se preocupar com detalhes da implementação.
+
+- O ADVI procura ser o mais abragente possível, e computacionalmente eficiente. Para isso é preciso ser simples em algumas escolhas:
+
+  - A família variacional proposta é a Gaussiana, isto é $q_{\psi}$ é a densidade de uma Gaussiana com os parâmetros variacionais $\psi = (\boldsymbol{\mu}, \boldsymbol{\Sigma})$.
+
+  - As integrais são avaliadas usando MC, já que a simulação de valores das distribuições é simples e rápido.
+
+
+
+---
+
+
+- Para definir uma família Gaussian a primeira etapa do algoritmo é transformar o $\boldsymbol{\theta}$ para $\mathbb{R}^K$. Definimos uma função diferenciável e bijetora:
+
+$$
+T : \text{supp}(p(\theta)) \to \mathbb{R}^K
+$$
+
+e identificamos as variáveis transformadas como $\zeta = T(\boldsymbol{\theta})$. A densidade conjunta transformada $p(\boldsymbol{y}, \zeta)$ é uma função de $\boldsymbol{\zeta}$ e pode ser representada como:
+
+$$
+p(\boldsymbol{y}, \boldsymbol{\zeta}) = p(\boldsymbol{y}, T^{-1}(\boldsymbol{\zeta})) \, \det J_{T^{-1}}(\boldsymbol{\zeta}),
+$$
+
+onde $J_{T^{-1}}(\boldsymbol{\zeta})$ é o jacobiano da transformação inversa e as variáveis $\boldsymbol{\zeta}$ têm suporte no espaço real $\mathbb{R}^K$.
+
+- Agora podemos definir umas das duas famílias
+  - Mean-field Gaussian
+
+$$
+q(\boldsymbol{\zeta}; \psi) = \text{Normal}(\boldsymbol{\zeta} \mid \mu, \text{diag}(\sigma^2)) = \prod_{k=1}^{K} \text{Normal}(\zeta_k \mid \mu_k, \sigma_k^2),
+$$
+onde o vetor $\psi = (\mu_1, \dots, \mu_K, \sigma_1^2, \dots, \sigma_K^2)$ concatena a média e a variância de cada fator Gaussiano.  
+
+---
+
+- Full-rank Gaussian
+
+Outra opção é postular uma **aproximação variacional Gaussian full-rank**:
+
+$$
+q(\zeta; \psi) = \text{Normal}(\zeta \mid \mu, \Sigma),
+$$
+
+onde o vetor $\psi = (\mu, \Sigma)$ concatena o vetor de médias $\mu$ e a matriz de covariância $\Sigma$.  
+
+- Para garantir que $\Sigma$ permaneça sempre semi-definida positiva, reparametrizamos a matriz de covariância usando uma fatoração de Cholesky:
+
+$$
+\Sigma = L L^\top
+$$
+
+- A otimização da matriz L é mais viável, sem restrições e triangular inferior.
+---
+
+Escrevemos a função objetivo variacional, o **ELBO**, no espaço de coordenadas reais como:
+
+$$\begin{align}
+\mathcal{L}(\psi) = &   \mathbb{E}_{q_{\psi}(\boldsymbol{\theta})}[\log q_{\psi}(\boldsymbol{\theta})] - \mathbb{E}_{q_{\psi}(\boldsymbol{\theta})}[\log p(\boldsymbol{\theta},\boldsymbol{y})] \\
+                 = &  \mathbb{E}_{q_{\psi}(\boldsymbol{\zeta)}} \Big[ \log p(y, T^{-1}(\boldsymbol{\zeta)})) + \log \det J_{T^{-1}}(\boldsymbol{\zeta)}) \Big] + \mathbb{E}_{q_{\psi}(\boldsymbol{\zeta})}[\log q_{\psi}(\boldsymbol{\zeta})]
+\end{align}$$
+
+
+- Este é um problema de otimização não restrito que podemos resolver usando gradiente ascendente.  
+
+- O stan implementa um **algoritmo de gradiente ascendente estocástico** que utiliza:  
+  - **Diferenciação automática** para calcular os gradientes  
+  - **Integração de Monte Carlo (MC)** para aproximar expectativas intratáveis
+
+- O pacote retorna amostras das posterioris $q_{\psi}(\boldsymbol{\theta)}$.
+
+
+
+
+
+

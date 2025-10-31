@@ -1,0 +1,243 @@
+---
+title: "ADVI"
+output: html_document
+date: "2025-10-29"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r cars}
+library(aplore3)
+library(cmdstanr)
+library(posterior)
+lowbwt = aplore3::lowbwt
+head(lowbwt)
+lowbwt$y = ifelse(lowbwt$low == "< 2500 g", 1, 0)
+X = model.matrix(~ age + lwt + race + smoke +ht +ui + ftv, data = lowbwt)
+model_reg_logistica <- "
+data {
+  int<lower=0> N;         // número de observações
+  int<lower = 0> p;
+  matrix[N,p] X;            // preditor
+  array[N] int<lower=0, upper=1> y;  // resposta binária (0 ou 1)
+}
+
+parameters {
+  vector[p] beta;              // coeficiente do preditor
+}
+
+model {
+  // Priors
+
+  beta ~ normal(0, 10);
+  
+  // Likelihood
+  y ~ bernoulli_logit(X * beta);
+  
+  // ou
+  //p = inv_logit(alpha + X * beta);  // converte logit -> probabilidade
+  //y ~ bernoulli(p);                 // Bernoulli com p
+}
+"
+dat = list(N = dim(lowbwt)[1], X = X, y = lowbwt$y,p =ncol(X))
+model <- cmdstan_model(write_stan_file(model_reg_logistica))
+```
+
+### Ajuste usando NUTS
+
+```{r}
+fit <- model$sample(data=dat, seed=123, chains = 1, parallel_chains = 1, iter_warmup = 1000,iter_sampling = 3000,
+                    thin = 1, save_warmup = FALSE)
+
+```
+
+```{r}
+fit_vb <- model$variational(
+  data = dat,
+  seed = 123,
+  algorithm = "meanfield",  # ou "fullrank"
+  iter = 80000              # número de iterações para convergência
+)
+```
+
+```{r}
+
+print(fit)
+print(fit_vb)
+
+```
+
+```{r}
+
+beta_draws  <- fit$draws("beta")
+posterior_mat <- as_draws_matrix(fit$draws("beta"))
+
+beta_vb_draws = fit_vb$draws("beta")
+posterior_mat_vb <- as_draws_matrix(fit_vb$draws("beta"))
+
+hist(posterior_mat[,1],
+     col = adjustcolor("red", alpha.f = 0.8),  # 0 = totalmente transparente, 1 = opaco
+     breaks = 25,
+     probability = TRUE)
+
+hist(posterior_mat_vb[,1],
+     col = adjustcolor("blue", alpha.f = 0.3), # mais transparente
+     breaks = 25,
+     add = TRUE,
+     probability = TRUE)
+
+
+```
+
+### Linear regression with automatic automatic relevance determination
+
+\begin{align}
+    y_{i}|\boldsymbol{\beta} & \sim \text{N}(y_i|\boldsymbol{x}_i^\top \boldsymbol{\beta}, \sigma^2) \\
+    \boldsymbol{\beta} & \sim N_P(0,\sigma (\text{diag} \sqrt{\boldsymbol{\alpha}})^{-1}) \\ \nonumber
+    \alpha_i &\sim \text{Gamma}(c,d) \\ \nonumber
+    \sigma &\sim \text{InvGamma}(a,b) \nonumber
+\end{align}
+
+```{r}
+
+lr = "
+data {
+  int<lower=0> N;        // número de observações
+  int<lower=0> D;        // número de variáveis
+  matrix[N, D] X;        // matriz de preditores
+  vector[N] y;           // vetor de respostas
+}
+
+parameters {
+  vector[D] w;                 // coeficientes da regressão
+  real beta0;
+  vector<lower=0>[D] alpha;    // precisões individuais para ARD
+  real<lower=0> sigma;         // desvio padrão do erro
+}
+
+model {
+  // priors
+  alpha ~ gamma(1, 1);
+  sigma ~ inv_gamma(1, 1);
+  w ~ normal(0, sigma ./ sqrt(alpha));  // escala depende de cada alpha
+
+  // likelihood
+  y ~ normal(X * w, sigma);
+}
+"
+
+```
+
+```{r}
+
+
+set.seed(1)
+
+# Parâmetros
+p <- 250      # número de covariáveis
+N <- 10000     # tamanho amostral
+sparsity <- 0.5  # proporção de zeros em beta
+
+# Número de zeros e não-zeros
+n_zeros <- round(sparsity * p)
+n_nonzero <- p - n_zeros
+
+# Vetor beta esparso
+beta_true <- c(rnorm(n_nonzero, mean = 0, sd = 1), rep(0, n_zeros))
+beta_true <- sample(beta_true)  # embaralha
+beta_true[1] <- -0.1            # força o intercepto ou primeiro coeficiente
+
+# Matriz X
+X <- matrix(rnorm(N * (p-1)), nrow = N, ncol = p-1)
+X <- cbind(1, X)  # primeira coluna de 1s
+y <- as.vector(X %*% beta_true + rnorm(N, mean = 0, sd = 1))
+
+
+### treino e teste
+
+# proporção treino/teste
+train_frac <- 0.7
+N <- nrow(X)
+train_idx <- sample(1:N, size = round(train_frac * N), replace = FALSE)
+test_idx <- setdiff(1:N, train_idx)
+
+# dados de treino
+X_train <- X[train_idx, ]
+y_train <- y[train_idx]
+
+# dados de teste
+X_test <- X[test_idx, ]
+y_test <- y[test_idx]
+
+
+dat = list(N = nrow(X_train), X = X_train, y = y_train,D =ncol(X_train))
+model <- cmdstan_model(write_stan_file(lr))
+```
+
+```{r}
+fit <- model$sample(data=dat, seed=123, chains = 1, parallel_chains = 1, iter_warmup = 1000,iter_sampling = 3000,
+                    thin = 1, save_warmup = FALSE)
+
+```
+
+```{r}
+fit_vb <- model$variational(
+  data = dat,
+  seed = 123,
+  algorithm = "meanfield",  # ou "fullrank"
+  iter = 30000,              # número de iterações para convergência
+  tol_rel_obj = 1e-3 
+  )
+
+```
+
+```{r}
+posterior_mat <- as_draws_matrix(fit$draws("w"))
+posterior_hyper <- as_draws_matrix(fit$draws("sigma"))
+posterior_mat_vb <- as_draws_matrix(fit_vb$draws("w"))
+posterior_hyper_vb <- as_draws_matrix(fit_vb$draws("sigma"))
+plot(apply(posterior_mat,2,mean),apply(posterior_mat_vb,2,mean))
+
+```
+
+```{r}
+
+n_draws <- nrow(posterior_mat)
+N_test <- nrow(X_test)
+
+# inicializa matriz de predições
+y_pred_post <- matrix(NA, nrow = n_draws, ncol = N_test)
+
+set.seed(123)
+for (s in 1:n_draws) {
+  mu_s <- X_test %*% c(posterior_mat[s, ])        # média para esta amostra
+  y_pred_post[s, ] <- rnorm(N_test, mean = mu_s, sd = posterior_hyper[s,1])
+}
+
+
+y_pred_mean <- colMeans(y_pred_post)
+sqrt(mean((y_test - y_pred_mean)^2))
+
+```
+
+```{r}
+
+n_draws <- nrow(posterior_mat_vb)
+N_test <- nrow(X_test)
+
+# inicializa matriz de predições
+y_pred_post <- matrix(NA, nrow = n_draws, ncol = N_test)
+
+set.seed(123)
+for (s in 1:n_draws) {
+  mu_s <- X_test %*% c(posterior_mat_vb[s, ])        # média para esta amostra
+  y_pred_post[s, ] <- rnorm(N_test, mean = mu_s, sd = posterior_hyper_vb[s,1])
+}
+
+
+y_pred_mean <- colMeans(y_pred_post)
+sqrt(mean((y_test - y_pred_mean)^2))
+
+```

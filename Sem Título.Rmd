@@ -1,0 +1,289 @@
+---
+title: "Mini curso - Introducção a computacao bayesiana"
+output: html_document
+date: "2025-10-28"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Stan
+
+Há diferentes interfaces para Stan, incluindo CmdStanR (interface com R), CmdStanPy (interface com Python), além de interfaces com Matlab, Julia e Mathematica.
+
+Detalhes sobre instalação: https://mc-stan.org
+
+Livro referência: 
+
+
+### Estrutura básica de um código **Stan**
+
+A estrutura mais simples de um código **Stan** é composta por **três blocos**:  
+**data**, **parameters** e **model**, conforme mostrado abaixo:
+
+```stan
+data {
+   declaração dos dados Y
+}
+parameters {
+   declaração dos parâmetros θ a serem amostrados
+}
+model {
+   descrição das verossimilhanças p(Y|θ)
+   descrição das distribuições a priori p(θ)
+}
+```
+
+### Simple Linear Regression
+
+X: anos de experiência
+Y: salário anual
+
+```{r cars}
+#setwd("~/Documents/GitHub/Mini-curso_CompBayes/Data")
+setwd("~/Library/Mobile Documents/com~apple~CloudDocs/Documents/GitHub/Mini-curso_CompBayes/Data")
+salary = read.csv("data-salary.csv")
+head(salary)
+
+plot(salary, pch = 19)
+```
+
+
+```{r}
+library(cmdstanr)
+
+model_lin <- "
+data {
+  int<lower=0> N;
+  vector[N] X;
+  vector[N] Y;
+}
+parameters {
+  real alpha;
+  real beta;
+  real<lower=0> sigma;
+}
+model {
+  Y ~ normal(alpha + beta * X, sigma);
+}
+"
+
+data <- list(N=nrow(salary), X=salary$X, Y=salary$Y)
+model <- cmdstan_model(write_stan_file(model_lin))
+#model <- cmdstan_model(stan_file='model_lin.stan')
+fit <- model$sample(data=data, seed=123, chains = 1,iter_warmup = 1000, iter_sampling = 1000)
+
+```
+
+
+```{r}
+library(bayesplot)
+library(posterior)
+fit$summary()
+beta_sample <- as_draws_matrix(fit$draws("beta"))
+hist(beta_sample)
+plot(beta_sample,type="l")
+acf(beta_sample)
+
+
+
+```
+
+
+### Predições
+
+
+```{r pressure, echo=FALSE}
+library(ggplot2)
+d_ms <- fit$draws(format='df')
+N_ms <- nrow(d_ms)
+
+Xp <- seq(0, 28, by = 1)
+Np <- length(Xp)
+
+set.seed(123)
+
+yp_base_ms <- matrix(nrow=N_ms, ncol=Np)
+yp_ms <- matrix(nrow=N_ms, ncol=Np)
+for (n in 1:Np) {
+  yp_base_ms[,n] <- d_ms$alpha + d_ms$beta * Xp[n] # predicao da media a posteriori
+  yp_ms[,n] <- rnorm(n=N_ms, mean=yp_base_ms[,n], sd=d_ms$sigma) # posteriori preditiva, incluindo o ruído do modelo.
+}
+
+
+qua <- apply(yp_base_ms, 2, quantile, probs=c(0.025, 0.25, 0.50, 0.75, 0.975))
+d_est <- data.frame(X=Xp, t(qua), check.names = FALSE)
+
+p <- ggplot() +
+  theme_bw(base_size=18) +
+  geom_ribbon(data=d_est, aes(x=X, ymin=`2.5%`, ymax=`97.5%`), fill='black', alpha=1/6) +
+  geom_ribbon(data=d_est, aes(x=X, ymin=`25%`, ymax=`75%`), fill='black', alpha=2/6) +
+  geom_line(data=d_est, aes(x=X, y=`50%`), linewidth=1) +
+  geom_point(data=salary, aes(x=X, y=Y), shape=1, size=3) +
+  coord_cartesian(ylim = c(32, 67)) +
+  scale_y_continuous(breaks=seq(40, 60, 10)) +
+  labs(y='Y')
+p
+
+
+qua <- apply(yp_ms, 2, quantile, probs=c(0.025, 0.25, 0.50, 0.75, 0.975))
+d_est <- data.frame(X=Xp, t(qua), check.names = FALSE)
+
+p <- ggplot() +
+  theme_bw(base_size=18) +
+  geom_ribbon(data=d_est, aes(x=X, ymin=`2.5%`, ymax=`97.5%`), fill='black', alpha=1/6) +
+  geom_ribbon(data=d_est, aes(x=X, ymin=`25%`, ymax=`75%`), fill='black', alpha=2/6) +
+  geom_line(data=d_est, aes(x=X, y=`50%`), linewidth=1) +
+  geom_point(data=salary, aes(x=X, y=Y), shape=1, size=3) +
+  coord_cartesian(ylim = c(32, 67)) +
+  scale_y_continuous(breaks=seq(40, 60, 10)) +
+  labs(y='Y')
+p
+
+```
+
+```{r}
+hist(yp_ms[,15], col = "lightblue",main = "")
+abline(v = salary$Y[15], lwd = 2)
+
+```
+
+
+### Regressão Logística
+
+Outras distribuições de referência: https://mc-stan.org/docs/2_18/functions-reference/conventions-for-probability-functions.html
+
+```{r}
+model_reg_logistica <- "
+data {
+  int<lower=0> N;         // número de observações
+  int<lower = 0> p;
+  matrix[N,p] X;            // preditor
+  array[N] int<lower=0, upper=1> y;  // resposta binária (0 ou 1)
+}
+
+parameters {
+  vector[p] beta;              // coeficiente do preditor
+}
+
+model {
+  // Priors
+
+  beta ~ normal(0, 10);
+  
+  // Likelihood
+  y ~ bernoulli_logit(X * beta);
+  
+  // ou
+  //p = inv_logit(alpha + X * beta);  // converte logit -> probabilidade
+  //y ~ bernoulli(p);                 // Bernoulli com p
+}
+generated quantities {
+  vector[N] log_lik;
+  for (i in 1:N)
+    log_lik[i] = bernoulli_logit_lpmf(y[i] | X[i] * beta);
+}
+"
+
+```
+
+
+Vamos usar o  low birth weight data data.frame que contém com 189 linhas e 11 variáveis:
+
+- **id**: Código de identificação  
+- **low**: Baixo peso ao nascer (1: ≥ 2500 g, 2: < 2500 g)  
+- **age**: Idade da mãe (em anos)  
+- **lwt**: Peso da mãe no último período menstrual (em libras)  
+- **race**: Raça (1: Branca, 2: Negra, 3: Outra)  
+- **smoke**: Tabagismo durante a gravidez (0: Não, 1: Sim)  
+- **ptl**: Histórico de parto prematuro (1: Nenhum, : Um, 3: Dois, etc.)  
+- **ht**: Histórico de hipertensão (1: Não, 2: Sim)  
+- **ui**: Presença de irritabilidade uterina (1: Não, 2: Sim)  
+- **ftv**: Número de consultas médicas no primeiro trimestre (1: Nenhuma, 2: Uma, 3: Duas, etc.)  
+- **bwt**: Peso do bebê ao nascer (em gramas)
+
+```{r}
+library(aplore3)
+lowbwt = aplore3::lowbwt
+head(lowbwt)
+```
+
+```{r}
+lowbwt$y = ifelse(lowbwt$low == "< 2500 g", 1, 0)
+X = model.matrix(~ age + lwt + race + smoke +ht +ui + ftv, data = lowbwt)
+
+dat = list(N = dim(lowbwt)[1], X = X, y = lowbwt$y,p =ncol(X))
+model <- cmdstan_model(write_stan_file(model_reg_logistica))
+
+fit <- model$sample(data=dat, seed=123, chains = 1, parallel_chains = 1, iter_warmup = 1000,iter_sampling = 3000,
+                    thin = 1, save_warmup = FALSE)
+
+print(fit)
+```
+
+```{r}
+library(coda)
+posterior_mat <- as_draws_matrix(fit$draws("beta"))
+HPDinterval(as.mcmc(posterior_mat), prob = 0.95)
+
+```
+
+```{r}
+lowbwt$y = ifelse(lowbwt$low == "< 2500 g", 1, 0)
+X = model.matrix(~ age + lwt + race + smoke +ht +ui + ftv, data = lowbwt)
+
+dat = list(N = dim(lowbwt)[1], X = X, y = lowbwt$y,p =ncol(X))
+model <- cmdstan_model(write_stan_file(model_reg_logistica))
+
+fit2 <- model$sample(data=dat, seed=123, chains = 1, parallel_chains = 1, iter_warmup = 1000,iter_sampling = 3000,
+                    thin = 1, save_warmup = FALSE)
+
+library(loo)
+log_lik <- fit$draws("log_lik")
+log_lik2 <- fit2$draws("log_lik")
+waic_result <- waic(log_lik)
+waic_result2 <- waic(log_lik2)
+
+
+loo_result <- loo(log_lik)
+loo_result2 <- loo(log_lik2)
+```
+
+### Predições
+```{r}
+
+# === Posterior preditiva ===
+Probs <- exp(X %*% t(posterior_mat)) / (1 + exp(X %*% t(posterior_mat)))
+
+# Amostras da resposta predita
+y_rep <- matrix(
+  rbinom(length(Probs), size = 1, prob = as.vector(Probs)),
+  nrow = nrow(X)
+)
+
+# Probabilidade média posterior por observação
+lowbwt$post_pred <- rowMeans(y_rep)
+
+# Gráfico boxplot da probabilidade predita por grupo de peso
+boxplot(post_pred ~ low, data = lowbwt,
+        xlab = "Peso ao nascer",
+        ylab = "Probabilidade predita",
+        main = "Probabilidade predita por variável resposta",
+        col = c("lightblue", "lightcoral"))
+
+
+
+# Classificação binária a partir da probabilidade média
+lowbwt$resposta_pred <- ifelse(lowbwt$post_pred > 0.5, 1, 0)
+
+# Tabela de confusão
+tab_confusao <- table(
+  Predito = lowbwt$resposta_pred,
+  Observado = lowbwt$low
+)
+print(tab_confusao)
+
+
+
+```

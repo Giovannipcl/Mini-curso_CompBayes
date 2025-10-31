@@ -1,0 +1,654 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%% INSERINDO COMENTÁRIOS EM ARQUIVOS .bib %%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% 1. Como em outros arquivos LaTeX, comentários são iniciados por "%" e,
+%    portanto, é preciso usar "\%" para imprimir o caractere "%". Esquecer
+%    disso pode gerar erros difíceis de encontrar!
+%
+% 2. Não é possível inserir comentários dentro de uma entrada, apenas fora.
+%
+% 3. Não é possível incluir o caractere arroba em um comentário.
+%
+% 4. Se quiser desabilitar temporariamente um campo ("comentar" o campo),
+%    troque seu nome para algum nome inválido, como "author-disable".
+%    Se quiser fazer alguma observação permanente dentro de uma entrada,
+%    você também pode usar algum nome de campo inválido, como "lembrete",
+%    ou usar o campo "annotation", que normalmente é ignorado.
+%
+% 5. Se quiser desabilitar temporariamente uma entrada inteira ("comentar" a
+%    entrada), não basta colocar "%" nas linhas correspondentes por causa do
+%    caractere arroba; também é preciso remover a arroba.
+%
+% 6. Na verdade, as regras não são bem essas, mas segui-las é uma boa ideia:
+%    https://tex.stackexchange.com/a/262282
+%
+% Por exemplo, esta entrada está comentada, ou seja, não tem efeito: se
+% houvesse uma referência a ela no texto, a referência ficaria inválida.
+% Observe que, para isso, o caractere arroba foi apagado!
+%
+%Book{JW82,
+% author    = {Richard A. Johnson and Dean W. Wichern},
+% title     = {Applied Multivariate Statistical Analysis},
+% publisher = {Prentice-Hall},
+% year      = {1983}
+%}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% O CAMPO "MONTH" %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% biblatex prefere o uso do campo "date" para definir ano, mês etc. No
+% entanto, se você quiser garantir compatibilidade tanto com biblatex
+% quanto com bibtex, use os campos "year" e "month". Ambos reconhecem
+% diversos formatos para o campo "month", mas apenas um funciona
+% corretamente com os dois: o nome do mês em inglês, abreviado com três
+% letras minúsculas e sem chaves, ou seja:
+%
+% ...
+% author = {Somebody},
+% year = {2011},
+% month = oct,
+% title = {Some title},
+% ...
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% Esta entrada não está em uso em tese.tex, apenas em
+% apresentacao.tex, mas isso não é um problema: você pode
+% ter um banco de dados com todos os papers que são de seu
+% interesse e, em um dado texto, citar apenas alguns deles.
+@Manual{CORBA:spec,
+ title       = {{CORBA} v3.0 Specification},
+ author      = {{Object Management Group}},
+ shortauthor = {OMG},
+ month       = jul,
+ year        = {2002},
+ note        = {OMG Document 02-06-33}
+}
+
+@Book{eco:09,
+ author   = {Umberto Eco},
+ title    = {Como se Faz uma Tese},
+ edition  = 22,
+ publisher= {Perspectiva},
+ note     = {Tradução Gilson Cesar Cardoso de Souza},
+ year     = {2009},
+}
+
+@Book{zobel:04,
+ author   = {Justin Zobel},
+ title    = {Writing for Computer Science: The Art of Effective Communication},
+ publisher= {Springer},
+ edition  = 2,
+ year     = {2004},
+}
+
+@Book{waz:09,
+ author   = {Raul S. Wazlawick},
+ title    = {Metodologia de Pesquisa em Ciência da Computação},
+ publisher= {Campus},
+ edition  = 1,
+ year     = {2009},
+}
+
+@Book{Higham:98,
+ author   = {Nicholas J. Higham},
+ title    = {Handbook of Writing for the Mathematical Sciences},
+ edition  = 2,
+ publisher= {SIAM: Society for Industrial and Applied Mathematics},
+ month    = aug,
+ year     = {1998},
+}
+
+@book{Knuth:96,
+ author   = {Donald E. Knuth and Tracy Larrabee and Paul M. Roberts},
+ title    = {Mathematical Writing},
+ publisher= {The Mathematical Association of America},
+ month    = sep,
+ year     = {1996}
+}
+
+@InProceedings{alves03:simi,
+ author   = {Carlos E. R. Alves and Edson N. Cáceres and Frank Dehne and Siang W. Song},
+ title    = {A Parallel Wavefront Algorithm for Efficient Biological Sequence Comparison},
+ booktitle= {ICCSA'03: The 2003 International Conference on Computational Science and its Applications},
+ year     = {2003},
+ pages    = {249-258},
+ month    = may,
+ publisher= {Springer-Verlag}
+}
+
+@Article{MenaChalco08,
+ author   = {Jesús P. Mena-Chalco and Helaine Carrer and Yossi Zana and Roberto M. Cesar-Jr.},
+ title    = {Identification of Protein Coding Regions Using the Modified {G}abor-Wavelet Transform},
+ journal  = {IEEE/ACM Transactions on Computational Biology and Bioinformatics},
+ volume   = {5},
+ pages    = {198-207},
+ year     = {2008},
+}
+
+@Article{floats2014,
+ author    = {Frank Mittelbach},
+ title     = {How to influence the position of float environments like figure and table in {\LaTeX}?},
+ journal   = {{TUGboat}},
+ journalsubtitle = {Communications of the \TeX\ Users Group},
+ volume    = {35},
+ number    = {3},
+ year      = 2014,
+ url       = {tug.org/TUGboat/tb35-3/tb111mitt-float.pdf},
+ urldate   = {2020-01-09},
+ publisher = {\TeX\ {Users} {Group}},
+ address   = {Portland ({OR}), {USA}},
+}
+
+@Techreport{alvisi99:analysisCIC,
+ author      = {Lorenzo Alvisi and Elmootazbellah Elnozahy and Sriram S. Rao and Syed A. Husain and Asanka Del Mel},
+ title       = {An Analysis of Comunication-Induced Checkpointing},
+ institution = {Department of Computer Science, University of Texas at Austin},
+ year        = {1999},
+ number      = {TR-99-01},
+ address     = {Austin, USA}
+}
+
+@Misc{gridftp,
+ author   = {William Allcock},
+ title    = {{GridFTP} Protocol Specification. {Global Grid Forum} Recommendation ({GFD}.20)},
+ year     = {2003}
+}
+
+% A entrada "year" eh usada por bibtex;
+% biblatex pode usar "year" ou "date"
+@Manual{natbib,
+ title       = "Reference sheet for \texttt{natbib} usage",
+ author      = "Patrick W. Daly",
+ year        = {2010},
+ date        = {2010-09-13},
+ urldate     = {2018-12-20},
+ url         = {mirrors.ctan.org/macros/latex/contrib/natbib/natnotes.pdf},
+}
+
+@Manual{biblatex,
+ title       = "The \texttt{biblatex} Package",
+ author      = "Philipp Lehman and Philip Kime and Moritz Wemheuer and Audrey Boruvka and Joseph Wright",
+ year        = 2018,
+ date        = {2018-10-30},
+ urldate     = {2018-12-20},
+ url         = {mirrors.ctan.org/macros/latex/contrib/biblatex/doc/biblatex.pdf},
+}
+
+@PhdThesis{garcia01:PhD,
+ author   = {Islene C. Garcia},
+ title    = {Visões Progressivas de Computações Distribuídas},
+ school   = {Instituto de Computação, Universidade de Campinas},
+ address  = {Campinas, Brasil},
+ year     = {2001},
+ month    = dec
+}
+
+@Conference{bronevetsky02,
+ author     = {Greg Bronevetsky and Daniel Marques and Keshav Pingali and Paul Stodghill},
+ title      = {Automated Application-Level Checkpointing of {MPI} Programs},
+ booktitle  = {PPoPP'03: Proceedings of the 9th ACM SIGPLAN Symposium on Principles and Practice of Parallel Programming},
+ year       = {2003},
+ pages      = {84-89},
+ eventdate  = {2003-06-11/2003-06-13},
+ venue      = {San Diego, California}
+}
+
+@InCollection{bobaoglu93:concepts,
+ author   = {Ozalp Babaoglu and Keith Marzullo},
+ title    = {Consistent Global States of Distributed Systems: Fundamental Concepts and Mechanisms},
+ editor   = {Sape Mullender},
+ booktitle= {Distributed Systems},
+ edition  = 2,
+ year     = {1993},
+ pages    = {55-96}
+}
+
+@MastersThesis{schmidt03:MSc,
+ author   = {Rodrigo M. Schmidt},
+ title    = {Coleta de Lixo para Protocolos de \emph{Checkpointing}},
+ school   = {Instituto de Computação, Universidade de Campinas},
+ address  = {Campinas, Brasil},
+ year     = {2003},
+ month    = oct
+}
+
+@online{fowler04:designDead,
+ author   = {Martin Fowler},
+ title    = {Is Design Dead?},
+ year     = {2004},
+ month    = may,
+ urldate  = {2010-01-30},
+ url      = {martinfowler.com/articles/designDead.html},
+}
+
+@online{FSF:GNU-GPL,
+ author      = {{Free Software Foundation}},
+ shortauthor = {FSF},
+ title       = {{GNU} General Public License},
+ year        = 2007,
+ urldate     = {2010-01-30},
+ url         = {www.gnu.org/copyleft/gpl.html},
+}
+
+@article{alon09:how,
+ author   = {Uri Alon},
+ title    = {How To Choose a Good Scientific Problem},
+ journal  = {Molecular Cell},
+ year     = {2009},
+ volume   = {35},
+ number   = {6},
+ pages    = {726--728},
+ publisher= {Cell Press},
+ month    = sep,
+ doi      = {10.1016/j.molcel.2009.09.013},
+}
+
+@book{tufte01:visualDisplay,
+ author   = {Edward Tufte},
+ title    = {The Visual Display of Quantitative Information},
+ year     = {2001},
+ edition  = 2,
+ publisher= {Graphics Press},
+ month    = may,
+}
+
+@Manual{usp:guidelines,
+ author      = {{Universidade de São Paulo --- Sistema Integrado de Bibliotecas}},
+ shortauthor = {SIBiUSP},
+ title       = {Diretrizes para Apresentação de
+	        Dissertações e Teses da {USP}:
+	        Documento Eletrônico e Impresso},
+ year        = 2009,
+ url         = {www.teses.usp.br/index.php?option=com_content&view=article&id=52&Itemid=67},
+ urldate     = {2017-11-10},
+}
+
+@online{carlis:09,
+ author  = {John V. Carlis},
+ title   = {Design: The Key to Writing
+            (and Advising) a One-Draft {Ph.D} Dissertation},
+ year    = 2009,
+ url     = {www-users.cs.umn.edu/~carlis/one-draft.pdf},
+ urldate = {2017-11-10},
+}
+
+@book{craftresearch,
+ author    = {Wayne C. Booth and Gregory G. Colomb and Joseph M. Williams},
+ title     = {The Craft of Research},
+ publisher = {The University of Chicago Press},
+ year      = 2008,
+}
+
+@book{dissertjourney,
+ author    = {Carol M. Roberts},
+ title     = {The Dissertation Journey},
+ publisher = {Corwin},
+ year      = 2010,
+ edition   = 2,
+ location  = {Thousand Oaks, CA},
+}
+
+@manual{sbctemplate,
+ author  = {Luciana P. Nedel and Rafael H. Bordini and Flávio Rech Wagner and Jomi F. H\"{u}bner},
+ title   = {Instructions for Authors of {SBC} Conferences Papers and Abstracts},
+ year    = 2017,
+ url     = {www.sbc.org.br/documentos-da-sbc/category/169-templates-para-artigos-e-capitulos-de-livros},
+ urldate = {2018-12-13},
+}
+
+@article{rue2009approximate,
+  title={Approximate Bayesian inference for latent Gaussian models by using integrated nested Laplace approximations},
+  author={Rue, H{\aa}vard and Martino, Sara and Chopin, Nicolas},
+  journal={Journal of the royal statistical society: Series b (statistical methodology)},
+  volume={71},
+  number={2},
+  pages={319--392},
+  year={2009},
+  publisher={Wiley Online Library}
+}
+
+@article{shun1995laplace,
+  title={Laplace approximation of high dimensional integrals},
+  author={Shun, Zhenming and McCullagh, Peter},
+  journal={Journal of the Royal Statistical Society: Series B (Methodological)},
+  volume={57},
+  number={4},
+  pages={749--760},
+  year={1995},
+  publisher={Wiley Online Library}
+}
+
+@book{schervish2012theory,
+  title={Theory of statistics},
+  author={Schervish, Mark J},
+  year={2012},
+  publisher={Springer Science \& Business Media}
+}
+
+@book{gelman2013bayesian,
+  title={Bayesian data analysis},
+  author={Gelman, Andrew and Carlin, John B and Stern, Hal S and Dunson, David B and Vehtari, Aki and Rubin, Donald B},
+  year={2013},
+  publisher={CRC press}
+}
+
+@article{watanabe2010asymptotic,
+  title={Asymptotic equivalence of Bayes cross validation and widely applicable information criterion in singular learning theory.},
+  author={Watanabe, Sumio and Opper, Manfred},
+  journal={Journal of machine learning research},
+  volume={11},
+  number={12},
+  year={2010}
+}
+
+
+@article{tierney1986accurate,
+  title={Accurate approximations for posterior moments and marginal densities},
+  author={Tierney, Luke and Kadane, Joseph B},
+  journal={Journal of the american statistical association},
+  volume={81},
+  number={393},
+  pages={82--86},
+  year={1986},
+  publisher={Taylor \& Francis}
+}
+
+@article{spiegelhalter2002bayesian,
+  title={Bayesian measures of model complexity and fit},
+  author={Spiegelhalter, David J and Best, Nicola G and Carlin, Bradley P and Van Der Linde, Angelika},
+  journal={Journal of the royal statistical society: Series b (statistical methodology)},
+  volume={64},
+  number={4},
+  pages={583--639},
+  year={2002},
+  publisher={Wiley Online Library}
+}
+
+@article{carlan2023bayesian,
+  title={Bayesian conditional transformation models},
+  author={Carlan, Manuel and Kneib, Thomas and Klein, Nadja},
+  journal={Journal of the American Statistical Association},
+  volume={119},
+  number={546},
+  pages={1360--1373},
+  year={2024},
+  publisher={Taylor \& Francis}
+}
+@article{stasinopoulos2008generalized,
+  title={Generalized additive models for location scale and shape (GAMLSS) in R},
+  author={Stasinopoulos, D Mikis and Rigby, Robert A},
+  journal={Journal of Statistical Software},
+  volume={23},
+  pages={1--46},
+  year={2008}
+}
+
+@inproceedings{baumann2021deep,
+  title={Deep conditional transformation models},
+  author={Baumann, Philipp FM and Hothorn, Torsten and R{\"u}gamer, David},
+  booktitle={Joint European Conference on Machine Learning and Knowledge Discovery in Databases},
+  pages={3--18},
+  year={2021},
+  organization={Springer}
+}
+
+@article{klein2022multivariate,
+  title={Multivariate conditional transformation models},
+  author={Klein, Nadja and Hothorn, Torsten and Barbanti, Luisa and Kneib, Thomas},
+  journal={Scandinavian Journal of Statistics},
+  volume={49},
+  number={1},
+  pages={116--142},
+  year={2022},
+  publisher={Wiley Online Library}
+}
+
+@book{stasinopoulos2017flexible,
+  title={Flexible regression and smoothing: using GAMLSS in R},
+  author={Stasinopoulos, Mikis D and Rigby, Robert A and Heller, Gillian Z and Voudouris, Vlasios and De Bastiani, Fernanda},
+  year={2017},
+  publisher={CRC Press}
+}
+
+@article{hothorn2018most,
+  title={Most likely transformations},
+  author={Hothorn, Torsten and M{\"o}st, Lisa and B{\"u}hlmann, Peter},
+  journal={Scandinavian Journal of Statistics},
+  volume={45},
+  number={1},
+  pages={110--134},
+  year={2018},
+  publisher={Wiley Online Library}
+}
+
+@article{carlan2022bayesian,
+  title={Bayesian discrete conditional transformation models},
+  author={Carlan, Manuel and Kneib, Thomas},
+  journal={Statistical Modelling},
+  pages={1471082X221114177},
+  year={2022},
+  publisher={SAGE Publications Sage India: New Delhi, India}
+}
+
+@article{hothorn2014conditional,
+  title={Conditional transformation models},
+  author={Hothorn, Torsten and Kneib, Thomas and B{\"u}hlmann, Peter},
+  journal={Journal of the Royal Statistical Society: Series B: Statistical Methodology},
+  pages={3--27},
+  year={2014},
+  publisher={JSTOR}
+}
+
+@phdthesis{most2015conditional,
+  title={Conditional transformation models: interpretable parametrisations and censoring},
+  author={M{\"o}st, Lisa},
+  year={2015},
+  school={M{\"u}nchen, Ludwig-Maximilians-Universit{\"a}t, Diss., 2015}
+}
+
+
+@article{mctm,
+  title={Multivariate conditional transformation models},
+  author={Klein, Nadja and Hothorn, Torsten and Barbanti, Luisa and Kneib, Thomas},
+  journal={Scandinavian Journal of Statistics},
+  volume={49},
+  number={1},
+  pages={116--142},
+  year={2022},
+  publisher={Wiley Online Library}
+}
+
+
+@article{horrace2005some,
+  title={Some results on the multivariate truncated normal distribution},
+  author={Horrace, William C},
+  journal={Journal of multivariate analysis},
+  volume={94},
+  number={1},
+  pages={209--221},
+  year={2005},
+  publisher={Elsevier}
+}
+
+@article{belenky2003patterns,
+  title={Patterns of performance degradation and restoration during sleep restriction and subsequent recovery: A sleep dose-response study},
+  author={Belenky, Gregory and Wesensten, Nancy J and Thorne, David R and Thomas, Maria L and Sing, Helen C and Redmond, Daniel P and Russo, Michael B and Balkin, Thomas J},
+  journal={Journal of sleep research},
+  volume={12},
+  number={1},
+  pages={1--12},
+  year={2003},
+  publisher={Wiley Online Library}
+}
+
+
+
+@article{HaavardVBC,
+  author  = {Janet van Niekerk and Haavard Rue},
+  title   = {Low-rank Variational Bayes correction to the Laplace method},
+  journal = {Journal of Machine Learning Research},
+  year    = {2024},
+  volume  = {25},
+  number  = {62},
+  pages   = {1--25},
+  url     = {http://jmlr.org/papers/v25/21-1405.html}
+}
+
+
+@article{eilers1996flexible,
+  title={Flexible smoothing with B-splines and penalties},
+  author={Eilers, Paul HC and Marx, Brian D},
+  journal={Statistical science},
+  volume={11},
+  number={2},
+  pages={89--121},
+  year={1996},
+  publisher={Institute of Mathematical Statistics}
+}
+
+
+@book{wood2017generalized,
+  title={Generalized additive models: an introduction with R},
+  author={Wood, Simon N},
+  year={2017},
+  publisher={CRC press}
+}
+
+
+@article{pya2015shape,
+  title={Shape constrained additive models},
+  author={Pya, Natalya and Wood, Simon N},
+  journal={Statistics and computing},
+  volume={25},
+  pages={543--559},
+  year={2015},
+  publisher={Springer}
+}
+
+
+@article{lang2004bayesian,
+  title={Bayesian P-splines},
+  author={Lang, Stefan and Brezger, Andreas},
+  journal={Journal of computational and graphical statistics},
+  volume={13},
+  number={1},
+  pages={183--212},
+  year={2004},
+  publisher={Taylor \& Francis}
+}
+
+@book{de1978practical,
+  title={A practical guide to splines},
+  author={De Boor, Carl},
+  volume={27},
+  year={1978},
+  publisher={springer-verlag New York}
+}
+
+@book{green1993nonparametric,
+  title={Nonparametric regression and generalized linear models: a roughness penalty approach},
+  author={Green, Peter J and Silverman, Bernard W},
+  year={1993},
+  publisher={Crc Press}
+}
+
+@book{mosteller1977data,
+  title={Data Analysis and Regression: A Second Course in Statistics},
+  author={Mosteller, F. and Tukey, J.W.},
+  isbn={9780201048544},
+  lccn={lc76015465},
+  series={Addison-Wesley series in behavioral science},
+  url={https://books.google.com.br/books?id=pGlHAAAAMAAJ},
+  year={1977},
+  publisher={Addison-Wesley Publishing Company}
+}
+
+@article{koenker2001quantile,
+  title={Quantile regression},
+  author={Koenker, Roger and Hallock, Kevin F},
+  journal={Journal of economic perspectives},
+  volume={15},
+  number={4},
+  pages={143--156},
+  year={2001},
+  publisher={American Economic Association}
+}
+
+@online{lyche2017b,
+  author={Lyche, Tom and Manni, Carla and Speleers, Hendrik},
+  title = {B-Splines and Spline Approximation},
+  year = 2017,
+  url = {https://www.mat.uniroma2.it/~speleers/cime2017/material/notes_lyche.pd},
+  urldate = {2023-06-05}
+}
+
+@article{Box_cox,
+author = {Box, G. E. P. and Cox, D. R.},
+title = {An Analysis of Transformations},
+journal = {Journal of the Royal Statistical Society: Series B (Methodological)},
+volume = {26},
+number = {2},
+pages = {211-243},
+year = {1964}
+}
+
+@article{distjohson,
+ author = {N. L. Johnson},
+ journal = {Biometrika},
+ number = {1/2},
+ pages = {149--176},
+ title = {Systems of Frequency Curves Generated by Methods of Translation},
+ volume = {36},
+ year = {1949}
+}
+
+
+@online{who,
+  author={World Health Organization},
+  title = {Cardiovascular diseases},
+  year = 2023,
+  url = {https://www.who.int/health-topics/cardiovascular-diseases#tab=tab_1
+},
+  urldate = {Accessed: 2023-06-09}
+}
+
+@article{mahmood2014framingham,
+  title={The Framingham Heart Study and the epidemiology of cardiovascular disease: a historical perspective},
+  author={Mahmood, Syed S and Levy, Daniel and Vasan, Ramachandran S and Wang, Thomas J},
+  journal={The lancet},
+  volume={383},
+  number={9921},
+  pages={999--1008},
+  year={2014},
+  publisher={Elsevier}
+}
+
+
+@article{monnahan2018no,
+  title={No-U-turn sampling for fast Bayesian inference in ADMB and TMB: Introducing the adnuts and tmbstan R packages},
+  author={Monnahan, Cole C and Kristensen, Kasper},
+  journal={PloS one},
+  volume={13},
+  number={5},
+  pages={e0197954},
+  year={2018},
+  publisher={Public Library of Science San Francisco, CA USA}
+}
+
+ @article{coda,
+    title = {CODA: Convergence Diagnosis and Output Analysis for MCMC},
+    author = {Martyn Plummer and Nicky Best and Kate Cowles and Karen
+      Vines},
+    journal = {R News},
+    year = {2006},
+    volume = {6},
+    number = {1},
+    pages = {7--11},
+    url = {https://journal.r-project.org/archive/},
+    pdf = {https://www.r-project.org/doc/Rnews/Rnews_2006-1.pdf},
+  }

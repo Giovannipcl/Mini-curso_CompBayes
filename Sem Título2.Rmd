@@ -1,0 +1,234 @@
+---
+title: "INLA"
+output: html_document
+date: "2025-10-28"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## INLA
+
+O algoritmo INLA está implementado no R no pacote INLA
+
+Detalhes sobre instalação: https://www.r-inla.org
+
+Livro referência: 
+
+
+
+### Regressão Linear
+
+O conjunto de dados é conhecido como USairpollution e contém a concentração média anual de dióxido de enxofre, em microgramas por metro cúbico, uma medida da poluição do ar da cidade.
+
+O data frame com 41 observações sobre as seguintes 7 variáveis:
+
+- **SO2**: teor de dióxido de enxofre no ar, em microgramas por metro cúbico.
+- **temp**: temperatura média anual em graus Fahrenheit.
+- **manu**: número de indústrias manufatureiras com 20 ou mais empregados.
+- **popul**: tamanho da população (censo de 1970), em milhares.
+- **wind**: velocidade média anual do vento, em milhas por hora.
+- **precip**: precipitação média anual, em polegadas.
+- **predays**: número médio de dias com precipitação por ano.
+
+```{r, echo = FALSE}
+
+library(HSAUR2)
+
+# Carregue o conjunto de dados
+data("USairpollution")
+
+# Visualize as primeiras linhas
+head(USairpollution)
+
+library(GGally)
+data(usair, package = "brinla")
+pairs.chart <- ggpairs(USairpollution, lower = list(continuous = "cor"), upper = list(continuous = "points", combo = "dot")) + ggplot2::theme(axis.text = element_text(size = 6))
+pairs.chart
+
+```
+
+
+```{r}
+library(INLA)
+usair.formula1 <- SO2 ~ temp + manu + wind + precip + predays
+usair.inla1 <- inla(usair.formula1, data = USairpollution, control.compute=list(waic = TRUE, cpo = TRUE))
+
+```
+
+
+```{r}
+summary(usair.inla1)
+
+```
+
+Alguns outros resultados disponíveis pelo INLA.
+
+
+```{r}
+
+#usair.inla1$summary.linear.predictor #medidas das distribuicoes a posteriori dos preditores lineares
+#usair.inla1$marginals.fixed$temp
+
+marginal_alpha <- usair.inla1$marginals.fixed[["temp"]]
+temp_x = seq(-4,0,0.1)
+# Transformando em função de densidade
+dens_alpha <- inla.dmarginal(temp_x,marginal = marginal_alpha)
+plot(temp_x, dens_alpha)
+
+hist(inla.rmarginal(1000,marginal_alpha))
+
+inla.emarginal(fun = function(x) x, marg = marginal_alpha)
+
+#usair.inla1$summary.hyperpar #medidas das distribuicoes a psoteriori dos hyperprameteros
+#usair.inla1$marginals.hyperpar
+#usair.inla1$waic$waic
+#usair.inla1$cpu.used
+
+#usair.inla1$cpo$pit
+
+```
+
+```{r}
+hist(usair.inla1$cpo$pit, main="", breaks = 10, xlab = "PIT")
+qqplot(qunif(ppoints(length(usair.inla1$cpo$pit))), usair.inla1$cpo$pit, main = "Q-Q plot for Unif(0,1)", xlab = "Theoretical
+Quantiles", ylab = "Sample Quantiles")
+qqline(usair.inla1$cpo$pit, distribution = function(p) qunif(p), prob = c(0.1,0.9))
+LPML3 <- sum(log(usair.inla1$cpo$cpo))
+
+```
+
+
+
+#### Dados longitudinais com modelo aleatorio
+
+
+Em Singer e Willett (2003), são apresentados os escores de leitura no teste Peabody Individual Achievement Test (PIAT) para 89 crianças, medidos nas idades de 6,5, 8,5 e 10,5 anos.
+
+
+```{r}
+
+#remotes::install_github("julianfaraway/brinla")
+library(brinla)
+data(reading)
+ggplot(reading, aes(agegrp, piat, group=id)) + geom_line()
+
+
+
+```
+
+```{r}
+sample_ids <- sample(unique(reading$id), 12)
+
+
+library(dplyr)
+reading_subset <- reading %>%
+  filter(id %in% sample_ids)
+
+ggplot(reading_subset, aes(x = agegrp, y = piat, group = id)) +
+  geom_line(color = "steelblue", size = 1) +
+  #geom_point(color = "black", size = 2) +
+  facet_wrap(~id, ncol = 4) +   # organiza em matriz: 4 colunas
+  labs(x = "Faixa etária", y = "Pontuação PIAT") +
+  theme_minimal() +
+  theme(strip.text = element_text(face = "bold"))
+
+
+```
+
+**Random Intercept model**
+
+O modelo considerado é dado por:
+
+$$
+y_{ij} = \beta_0 + \beta_1 t_j + \alpha_i + \varepsilon_{ij}, \quad i = 1, \ldots, 89; \quad j = 1, 2, 3.
+$$
+
+O tempo (ou idade, neste exemplo) é medido em três ocasiões: \(t_1, t_2, t_3\).
+
+Os parâmetros \(\beta_0\) e \(\beta_1\) são os chamados **efeitos fixos**, representando o intercepto e a inclinação comuns a todos os estudantes.  
+Para esses parâmetros, assume-se uma **prior gaussiana**.
+
+Os componentes aleatórios são dados por:
+
+$$
+\alpha_i \sim N(0, \sigma^2_{\alpha}) \quad \text{e} \quad \varepsilon_{ij} \sim N(0, \sigma^2_{\varepsilon}).
+$$
+
+
+```{r}
+
+reading$cagegrp = reading$agegrp - mean(reading$agegrp)
+formula <- piat ~ agegrp + f(id, model="iid")
+imod <- inla(formula, family="gaussian", data=reading)
+summary(imod)
+
+sigma_alpha = imod$marginals.hyperpar$`Precision for id`
+E_sigma = inla.emarginal(fun = function(x) 1/sqrt(x), marg = sigma_alpha)
+den_hyper = inla.tmarginal(fun = function(x) 1/sqrt(x), marg = sigma_alpha)
+```
+
+```{r}
+
+#imod$summary.random
+ind3 = imod$marginals.random$id$index.3
+
+plot(ind3[,1],ind3[,2])
+
+```
+
+
+$$
+y_{ij} = \beta_0 + \beta_1 t_j + \alpha_{0i} + \alpha_{1i} t_j + \varepsilon_{ij}, \quad i = 1, \ldots, 89; \quad j = 1, 2, 3,
+$$
+
+onde adicionamos a variação nas inclinações por meio de  
+\(\alpha_{1i} \sim \mathcal{N}(0, \sigma^2_{\alpha_1})\).
+
+
+```{r}
+nid <- length(levels(reading$id))
+reading$numid <- as.numeric(reading$id)
+reading$slopeid <- reading$numid + nid
+
+formula <- piat ~ cagegrp + f(numid, model="iid2d", n = 2*nid) +
+  f(slopeid, cagegrp, copy="numid")
+imod <- inla(formula, family="gaussian", data=reading,control.predictor = list(compute=TRUE),control.compute=list(return.marginals.predictor=TRUE))
+summary(imod)
+
+```
+
+
+
+```{r}
+
+lmod <- lmer(piat ~ cagegrp + (cagegrp|id), reading)
+summary(lmod)
+
+```
+
+
+
+```{r}
+
+postmean <- matrix(imod$summary.random$numid[,2],nid,2)
+postmean <- sweep(postmean,2,imod$summary.fixed$mean,"+")
+p <- ggplot(reading, aes(cagegrp, piat, group=id)) +
+  geom_line(col=gray(0.95)) + xlab("centered age")
+p+geom_abline(data=postmean,intercept=postmean[,1],slope=postmean[,2])
+
+
+nsamp <- 1000
+randprec <- inla.hyperpar.sample(nsamp, imod)[,1]
+neweps <- rnorm(nsamp, mean=0, sd=1/sqrt(randprec))
+pm90 <- imod$marginals.fitted.values[[267]]
+p1 <- ggplot(data.frame(pm90),aes(x,y))+geom_line()+xlim(c(20,60))
+newobs <- inla.rmarginal(nsamp, pm90) + neweps
+dens <- density(newobs)
+p1 + geom_line(data=data.frame(x=dens$x,y=dens$y),aes(x,y),linetype=2)
+
+
+```
+
